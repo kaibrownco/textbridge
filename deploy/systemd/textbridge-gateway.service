@@ -1,0 +1,25 @@
+[Unit]
+Description=textbridge: login gateway for Claude
+After=network-online.target textbridge-openmessage.service
+Wants=network-online.target
+
+[Service]
+User=textbridge
+Group=textbridge
+EnvironmentFile=/etc/textbridge/gateway.env
+ExecStart=/opt/textbridge/bin/textbridge-gateway serve
+Restart=always
+RestartSec=3
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/textbridge/gateway
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

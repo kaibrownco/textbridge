@@ -1,0 +1,25 @@
+[Unit]
+Description=textbridge: OpenMessage (Google Messages link)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=textbridge
+Group=textbridge
+EnvironmentFile=/etc/textbridge/openmessage.env
+ExecStart=/opt/textbridge/bin/openmessage serve --mcp-sse
+Restart=always
+RestartSec=5
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/textbridge/openmessage
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

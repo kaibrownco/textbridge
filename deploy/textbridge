@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# textbridge helper. Usage: sudo textbridge <command>
+set -euo pipefail
+
+BIN=/opt/textbridge/bin
+DATA=/var/lib/textbridge
+REPO="${TB_REPO:-kaibrownco/textbridge}"
+
+need_root() { [ "$(id -u)" -eq 0 ] || { echo "Run with sudo: sudo textbridge $*"; exit 1; }; }
+as_tb() { sudo -u textbridge env HOME="$DATA/openmessage" OPENMESSAGES_DATA_DIR="$DATA/openmessage" TB_STATE_DIR="$DATA/gateway" "$@"; }
+
+cmd="${1:-help}"
+case "$cmd" in
+  status)
+    for s in textbridge-openmessage textbridge-gateway caddy; do
+      printf '%-26s %s\n' "$s" "$(systemctl is-active "$s" || true)"
+    done
+    echo
+    echo "Phone link:"
+    curl -fsS --max-time 5 http://127.0.0.1:7007/api/status 2>/dev/null | head -c 600 || echo "  (backend not answering)"
+    echo
+    echo "Connector URL: https://$(cat /etc/textbridge/domain)/mcp"
+    ;;
+  pair)
+    need_root pair
+    cat <<'EOF'
+
+Link your phone (one time; repeat only if texts stop coming through)
+--------------------------------------------------------------------
+1. On your phone: Google Messages > profile picture > Device pairing.
+   Make sure you're signed in to your Google account there.
+2. On your computer, open a PRIVATE/INCOGNITO Chrome window and go to
+   messages.google.com/web. Sign in with the same Google account.
+3. In that window press F12 (or Cmd+Option+I), open the Network tab,
+   reload the page, click any request to messages.google.com, and under
+   "Request Headers" copy the whole value of "cookie".
+4. Paste it below, press Enter, then press Ctrl+D.
+5. Tap the matching emoji on your phone when asked.
+6. Close the private window (don't sign out of it).
+
+EOF
+    systemctl stop textbridge-openmessage
+    trap 'systemctl start textbridge-openmessage' EXIT
+    as_tb "$BIN/openmessage" pair --google
+    echo
+    echo "Paired. Starting the service; your history will sync in the background."
+    ;;
+  restart)
+    need_root restart
+    systemctl restart textbridge-openmessage textbridge-gateway caddy
+    echo "Restarted."
+    ;;
+  update)
+    need_root update
+    curl -fsSL "https://raw.githubusercontent.com/${REPO}/main/deploy/setup.sh" | bash
+    ;;
+  new-password)
+    need_root new-password
+    pw="$(as_tb "$BIN/textbridge-gateway" new-password)"
+    as_tb "$BIN/textbridge-gateway" sign-out-all >/dev/null
+    systemctl restart textbridge-gateway
+    echo "New passphrase (save it now):"
+    echo
+    echo "    $pw"
+    echo
+    echo "Every Claude session was signed out. Reconnect in Claude's connector settings."
+    ;;
+  sign-out-all)
+    need_root sign-out-all
+    as_tb "$BIN/textbridge-gateway" sign-out-all
+    systemctl restart textbridge-gateway
+    ;;
+  logs)
+    journalctl -u textbridge-openmessage -u textbridge-gateway -n "${2:-80}" --no-pager
+    ;;
+  *)
+    cat <<'EOF'
+textbridge commands (run with sudo):
+  status         is everything running, and is the phone linked
+  pair           link (or re-link) your phone
+  restart        restart all services
+  update         install the latest version (keeps your data)
+  new-password   make a new passphrase and sign Claude out everywhere
+  sign-out-all   sign Claude out everywhere (keeps the passphrase)
+  logs [N]       show recent log lines
+EOF
+    ;;
+esac
