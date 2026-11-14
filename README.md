@@ -26,6 +26,14 @@ Claude ──https──▶ Caddy ──▶ textbridge-gateway ──▶ OpenMes
   redirect hosts can register. Five wrong passphrases lock sign-in for 15
   minutes. Tokens are stored hashed. OpenMessage itself only listens on
   localhost.
+
+  The gateway also shapes what Claude sees. On connect it sends
+  [instructions](internal/gateway/mcpfilter.go): ask before sending, match
+  Kai's tone from his own past texts, read the thread first. It shows only
+  12 of OpenMessage's tools (reading, searching, sending, reacting) and
+  refuses calls to the rest. To change the instructions, put your own text
+  in a file and set `TB_INSTRUCTIONS_FILE` in `/etc/textbridge/gateway.env`.
+  `TB_TOOLS` (comma-separated) overrides the tool list.
 - **Caddy** provides the https address, using a free
   `<your-ip>.sslip.io` hostname and a Let's Encrypt certificate.
 

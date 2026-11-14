@@ -8,11 +8,13 @@
 package gateway
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -37,6 +39,10 @@ type Config struct {
 	StateDir  string // where state.json and password live
 	// RedirectHosts are the hosts allowed in registered redirect URIs.
 	RedirectHosts []string
+	// Instructions sent to Claude on connect (default: DefaultInstructions).
+	Instructions string
+	// Tools Claude may see and call (default: DefaultTools).
+	Tools []string
 }
 
 type authCode struct {
@@ -55,12 +61,15 @@ type pendingAuth struct {
 }
 
 type Server struct {
-	cfg    Config
-	store  *Store
-	pwHash string
-	proxy  *httputil.ReverseProxy
-	mux    *http.ServeMux
-	now    func() time.Time
+	cfg          Config
+	store        *Store
+	pwHash       string
+	proxy        *httputil.ReverseProxy
+	rewrite      *httputil.ReverseProxy
+	instructions string
+	tools        map[string]bool
+	mux          *http.ServeMux
+	now          func() time.Time
 
 	mu       sync.Mutex
 	codes    map[string]*authCode
@@ -84,21 +93,35 @@ func New(cfg Config, store *Store, pwHash string) (*Server, error) {
 		pending: map[string]*pendingAuth{},
 		mux:     http.NewServeMux(),
 	}
-	s.proxy = &httputil.ReverseProxy{
-		Rewrite: func(r *httputil.ProxyRequest) {
-			r.SetURL(up)
-			r.Out.Header.Del("Authorization")
-			r.Out.Header.Del("Cookie")
-			r.Out.Header.Del("X-Forwarded-For")
-			r.Out.Host = up.Host
-		},
-		// Stream responses (SSE) immediately.
-		FlushInterval: -1,
-		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			log.Printf("upstream error: %v", err)
-			http.Error(w, "messages backend unavailable", http.StatusBadGateway)
-		},
+	s.instructions = cfg.Instructions
+	if strings.TrimSpace(s.instructions) == "" {
+		s.instructions = DefaultInstructions
 	}
+	tools := cfg.Tools
+	if len(tools) == 0 {
+		tools = DefaultTools
+	}
+	s.tools = map[string]bool{}
+	for _, t := range tools {
+		if t = strings.TrimSpace(t); t != "" {
+			s.tools[t] = true
+		}
+	}
+	rewrite := func(r *httputil.ProxyRequest) {
+		r.SetURL(up)
+		r.Out.Header.Del("Authorization")
+		r.Out.Header.Del("Cookie")
+		r.Out.Header.Del("X-Forwarded-For")
+		r.Out.Host = up.Host
+	}
+	errHandler := func(w http.ResponseWriter, r *http.Request, err error) {
+		log.Printf("upstream error: %v", err)
+		http.Error(w, "messages backend unavailable", http.StatusBadGateway)
+	}
+	// Stream responses (SSE) immediately.
+	s.proxy = &httputil.ReverseProxy{Rewrite: rewrite, FlushInterval: -1, ErrorHandler: errHandler}
+	// For initialize / tools/list: buffer and edit the response.
+	s.rewrite = &httputil.ReverseProxy{Rewrite: rewrite, ModifyResponse: s.rewriteResponse, ErrorHandler: errHandler}
 
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok\n")) })
 	s.mux.HandleFunc("GET /.well-known/oauth-protected-resource", s.handleResourceMetadata)
@@ -476,6 +499,29 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 			`Bearer resource_metadata="`+s.cfg.PublicURL+`/.well-known/oauth-protected-resource"`)
 		oauthError(w, 401, "invalid_token", "sign in required")
 		return
+	}
+	if r.Method != http.MethodPost {
+		s.proxy.ServeHTTP(w, r)
+		return
+	}
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 32<<20))
+	if err != nil {
+		http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = io.NopCloser(bytes.NewReader(body))
+	r.ContentLength = int64(len(body))
+	msgs, ok := parseRPC(body)
+	if ok {
+		if id, name, blocked := s.blockedCall(msgs); blocked {
+			log.Printf("blocked hidden tool %q", name)
+			rpcError(w, id, "tool not available: "+name)
+			return
+		}
+		if needsRewrite(msgs) {
+			s.rewrite.ServeHTTP(w, r)
+			return
+		}
 	}
 	s.proxy.ServeHTTP(w, r)
 }

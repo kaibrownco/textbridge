@@ -72,10 +72,10 @@ while the first time.
 
 It's now available everywhere you use Claude, including the phone app and Duet.
 
-**Recommended:** in the connector's settings, set the send tools
-(`send_message`, `send_to_conversation`, `send_group_message`,
-`send_media_to_conversation`, `react_to_message`) to **ask before using**,
-so nothing goes out to a client without your OK.
+Claude is already told to show you every draft and wait for your yes
+before sending. As a second lock, in the connector's settings set
+`send_message`, `send_to_conversation` and `react_to_message` to
+**ask before using**.
 
 ## If something stops working
 

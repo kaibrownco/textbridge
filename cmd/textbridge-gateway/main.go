@@ -75,11 +75,25 @@ func serve(stateDir string) {
 	for i := range hosts {
 		hosts[i] = strings.TrimSpace(hosts[i])
 	}
+	instructions := ""
+	if f := env("TB_INSTRUCTIONS_FILE", ""); f != "" {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			log.Fatalf("read TB_INSTRUCTIONS_FILE: %v", err)
+		}
+		instructions = string(b)
+	}
+	var tools []string
+	if t := env("TB_TOOLS", ""); t != "" {
+		tools = strings.Split(t, ",")
+	}
 	srv, err := gateway.New(gateway.Config{
 		PublicURL:     public,
 		Upstream:      env("TB_UPSTREAM", "http://127.0.0.1:7007"),
 		StateDir:      stateDir,
 		RedirectHosts: hosts,
+		Instructions:  instructions,
+		Tools:         tools,
 	}, st, hash)
 	if err != nil {
 		log.Fatal(err)
