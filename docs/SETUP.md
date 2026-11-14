@@ -1,5 +1,22 @@
 # Setting up textbridge (about 30 minutes, one time)
 
+## Fastest way: one command in Cloud Shell
+
+1. Open <https://console.cloud.google.com>, make sure your account is
+   activated (not just the free trial), and tap the **Cloud Shell** icon
+   (`>_`) in the top bar.
+2. Paste this and press Enter:
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/kaibrownco/textbridge/main/deploy/gcp-create.sh | bash
+   ```
+
+   It creates the free server, opens web access, sets a $1 budget alert,
+   installs everything, and prints your **connector URL** and **passphrase**.
+3. Then do step 4 (link your phone) and step 5 (add it to Claude) below.
+
+The manual steps below do the same thing by hand.
+
 You'll need: your computer with Chrome, your Android phone, and a credit
 card for Google Cloud's sign-up (the server itself is free).
 

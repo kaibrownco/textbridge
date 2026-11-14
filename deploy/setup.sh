@@ -97,8 +97,18 @@ EOF
 
 NEWPASS=""
 if [ ! -s "$DATA/gateway/password" ]; then
-  say "Creating your passphrase"
-  NEWPASS="$(sudo -u textbridge env TB_STATE_DIR="$DATA/gateway" "$BIN/textbridge-gateway" new-password)"
+  # gcp-create.sh passes a ready-made hash in instance metadata, so the
+  # passphrase itself never touches this server or its logs.
+  mdhash="$(curl -fsS -H 'Metadata-Flavor: Google' \
+    http://169.254.169.254/computeMetadata/v1/instance/attributes/tb-password-hash 2>/dev/null || true)"
+  if [[ "$mdhash" == pbkdf2-sha256\$* ]]; then
+    say "Using the passphrase you were shown in Cloud Shell"
+    printf '%s\n' "$mdhash" > "$DATA/gateway/password"
+    chown textbridge:textbridge "$DATA/gateway/password"; chmod 600 "$DATA/gateway/password"
+  else
+    say "Creating your passphrase"
+    NEWPASS="$(sudo -u textbridge env TB_STATE_DIR="$DATA/gateway" "$BIN/textbridge-gateway" new-password)"
+  fi
 fi
 
 say "Starting everything"
