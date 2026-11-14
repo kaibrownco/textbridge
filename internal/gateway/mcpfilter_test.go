@@ -74,3 +74,17 @@ func TestInstructionsAndToolFiltering(t *testing.T) {
 		t.Fatalf("allowed tool failed: %v", m)
 	}
 }
+
+func TestLoginPageAllowsRedirectToClaude(t *testing.T) {
+	f := newFixture(t)
+	reg := f.postJSON("/register", map[string]any{"redirect_uris": []string{redirect}})
+	cid := decode(t, reg)["client_id"].(string)
+	_, ch := pkcePair()
+	resp, _ := f.client.Get(f.gw.URL + "/authorize?response_type=code&client_id=" + cid +
+		"&redirect_uri=" + redirect + "&code_challenge=" + ch + "&code_challenge_method=S256")
+	resp.Body.Close()
+	csp := resp.Header.Get("Content-Security-Policy")
+	if !strings.Contains(csp, "form-action 'self' https://claude.ai https://claude.com") {
+		t.Fatalf("CSP would block the redirect back to Claude: %q", csp)
+	}
+}

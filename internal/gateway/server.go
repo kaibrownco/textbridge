@@ -268,7 +268,18 @@ func (s *Server) renderLogin(w http.ResponseWriter, status int, reqID, client, e
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Frame-Options", "DENY")
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'")
+	// form-action also governs where the post-submit redirect may go, so the
+	// allowed redirect hosts (claude.ai, claude.com) must be listed here or
+	// the browser silently blocks the hand-off back to Claude.
+	formAction := "'self'"
+	for _, h := range s.cfg.RedirectHosts {
+		if h == "localhost" || h == "127.0.0.1" {
+			formAction += " http://" + h + ":*"
+		} else {
+			formAction += " https://" + h
+		}
+	}
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action "+formAction+"; frame-ancestors 'none'")
 	w.WriteHeader(status)
 	_ = loginTmpl.Execute(w, map[string]string{"Req": reqID, "Client": client, "Error": errMsg})
 }
@@ -360,7 +371,7 @@ func (s *Server) handleAuthorizePost(w http.ResponseWriter, r *http.Request) {
 	locked := s.now().Before(s.lockedTo)
 	s.mu.Unlock()
 	if !ok {
-		http.Error(w, "This sign-in link expired. Go back to Claude and click Connect again.", 400)
+		http.Error(w, "This sign-in link was already used or has expired. Go back to Claude and click Connect again.", 400)
 		return
 	}
 	c, _ := s.store.Client(p.clientID)
