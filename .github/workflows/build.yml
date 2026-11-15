@@ -24,7 +24,7 @@ jobs:
       - run: go vet ./...
       - run: go test -race -count=1 ./...
       - name: Shell scripts parse
-        run: bash -n deploy/setup.sh && bash -n deploy/textbridge && bash -n deploy/gcp-create.sh
+        run: bash -n deploy/setup.sh && bash -n deploy/textbridge && bash -n deploy/gcp-create.sh && python3 -m py_compile deploy/rotate-google-cookies
 
   release:
     needs: test

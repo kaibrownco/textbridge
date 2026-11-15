@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""Renew OpenMessage's Google sign-in the way a browser does.
+
+Google's __Secure-1PSIDTS cookie is short-lived; browsers renew it every
+~10 minutes by POSTing to accounts.google.com/RotateCookies. A headless
+server never does, so the Google Messages link dies about two hours after
+pairing. OpenMessage runs this script (OPENMESSAGE_COOKIE_REFRESH_SCRIPT)
+when Google rejects its sign-in; it renews the cookies in session.json and
+OpenMessage reconnects with them.
+
+Standard library only. Never prints cookie values.
+Technique from notebooklm-py (MIT): POST [000,"-0000000000000000000"].
+"""
+
+import http.cookiejar
+import json
+import os
+import sys
+import tempfile
+import urllib.request
+
+ROTATE_URL = os.environ.get("TB_ROTATE_URL", "https://accounts.google.com/RotateCookies")
+BODY = b'[000,"-0000000000000000000"]'
+UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+
+
+def log(msg):
+    print(f"rotate-google-cookies: {msg}", file=sys.stderr)
+
+
+def session_path():
+    data_dir = os.environ.get("OPENMESSAGES_DATA_DIR", "/var/lib/textbridge/openmessage")
+    return os.path.join(data_dir, "session.json")
+
+
+def make_cookie(name, value, domain, secure=True):
+    return http.cookiejar.Cookie(
+        version=0, name=name, value=value, port=None, port_specified=False,
+        domain=domain, domain_specified=True, domain_initial_dot=domain.startswith("."),
+        path="/", path_specified=True, secure=secure, expires=None, discard=False,
+        comment=None, comment_url=None, rest={}, rfc2109=False)
+
+
+def rotate(cookies, url=ROTATE_URL):
+    """POST RotateCookies with the given cookies; return the updated dict."""
+    host = urllib.request.urlparse(url).hostname or "accounts.google.com"
+    domain = ".google.com" if host.endswith("google.com") else host
+    jar = http.cookiejar.CookieJar()
+    for name, value in cookies.items():
+        jar.set_cookie(make_cookie(name, value, domain, secure=url.startswith("https")))
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+    req = urllib.request.Request(url, data=BODY, method="POST", headers={
+        "Content-Type": "application/json",
+        "Origin": "https://accounts.google.com",
+        "User-Agent": UA,
+    })
+    with opener.open(req, timeout=15) as resp:
+        status = resp.status
+        resp.read()
+    updated = dict(cookies)
+    changed = []
+    for c in jar:
+        if c.value and updated.get(c.name) != c.value:
+            updated[c.name] = c.value
+            changed.append(c.name)
+    return status, updated, changed
+
+
+def main():
+    path = session_path()
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        cookies = (data.get("auth_data") or {}).get("cookies") or {}
+        if not isinstance(cookies, dict) or "SID" not in cookies:
+            log("no Google cookies in session.json; re-pair with: sudo textbridge pair")
+            return 1
+        status, updated, changed = rotate(cookies)
+    except Exception as exc:  # network, HTTP 401, bad JSON
+        log(f"failed: {exc}")
+        return 1
+    if "__Secure-1PSIDTS" not in changed:
+        log(f"Google answered {status} but issued no new __Secure-1PSIDTS "
+            f"(changed: {', '.join(sorted(changed)) or 'none'}). The sign-in may be revoked; "
+            "re-pair with: sudo textbridge pair")
+        return 1
+    data["auth_data"]["cookies"] = updated
+    d = os.path.dirname(path)
+    fd, tmp = tempfile.mkstemp(dir=d, prefix=".session.", suffix=".tmp")
+    with os.fdopen(fd, "w") as f:
+        json.dump(data, f, separators=(",", ":"))
+        f.write("\n")
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, path)
+    if "-q" not in sys.argv and "--quiet" not in sys.argv:
+        print(f"renewed: {', '.join(sorted(changed))}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

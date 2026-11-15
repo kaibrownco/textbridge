@@ -60,6 +60,12 @@ EOF
     journalctl -u textbridge-openmessage -f --since "$since" -o cat \
       | grep -m1 "Deep backfill complete" | sed 's/^/Done: /'
     ;;
+  renew)
+    need_root renew
+    systemctl stop textbridge-openmessage
+    if as_tb "$BIN/rotate-google-cookies"; then echo "Sign-in renewed."; else echo "Renewal failed; you'll need: sudo textbridge pair"; fi
+    systemctl start textbridge-openmessage
+    ;;
   restart)
     need_root restart
     systemctl restart textbridge-openmessage textbridge-gateway caddy
@@ -94,6 +100,7 @@ textbridge commands (run with sudo):
   status         is everything running, and is the phone linked
   pair           link (or re-link) your phone
   backfill       re-download your full text history (keep phone awake)
+  renew          renew the Google sign-in now (happens automatically too)
   restart        restart all services
   update         install the latest version (keeps your data)
   new-password   make a new passphrase and sign Claude out everywhere
