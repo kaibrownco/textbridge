@@ -34,11 +34,13 @@ Link your phone (one time; repeat only if texts stop coming through)
 --------------------------------------------------------------------
 1. On your phone: Google Messages > profile picture > Device pairing.
    Make sure you're signed in to your Google account there.
-2. On your computer, open a PRIVATE/INCOGNITO Chrome window and go to
-   messages.google.com/web. Sign in with the same Google account.
-3. In that window press F12 (or Cmd+Option+I), open the Network tab,
-   reload the page, click any request to messages.google.com, and under
-   "Request Headers" copy the whole value of "cookie".
+2. On your computer, open a PRIVATE window in Firefox or Safari (NOT Chrome:
+   Chrome locks the sign-in to itself and the link dies within hours) and go
+   to messages.google.com/web. Sign in with the same Google account.
+   Safari: first turn on Settings > Advanced > "Show features for web developers".
+3. Open the developer tools (Firefox: F12, Safari: Option+Cmd+I), Network
+   tab, reload, click the first request to messages.google.com, and under
+   Request Headers copy the whole value of "Cookie" (name=value; name=value...).
 4. Paste it below, press Enter, then press Ctrl+D.
 5. Tap the matching emoji on your phone when asked.
 6. Close the private window (don't sign out of it).

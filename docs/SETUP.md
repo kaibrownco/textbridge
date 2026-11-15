@@ -70,10 +70,15 @@ In the same SSH window:
 sudo textbridge pair
 ```
 
-Follow the steps it prints. In short: open a **private/incognito** Chrome
-window, sign in at messages.google.com/web, copy the `cookie` request
-header from the developer tools' Network tab, paste it, press Enter and
-then Ctrl+D, and tap the matching emoji on your phone.
+Follow the steps it prints. In short: open a **private window in Firefox or
+Safari**, sign in at messages.google.com/web, copy the `Cookie` request
+header from the developer tools' Network tab (the `name=value; ...` line,
+not the Storage/cookies table), paste it, press Enter and then Ctrl+D, and
+tap the matching emoji on your phone.
+
+**Don't use Chrome for this.** Chrome binds Google sign-ins to itself
+(device-bound session credentials), so cookies copied out of Chrome stop
+working on the server within a couple of hours.
 
 Your normal Messages for web keeps working: textbridge links as a tablet,
 which has its own slot.
