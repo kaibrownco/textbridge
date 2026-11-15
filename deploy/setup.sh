@@ -49,8 +49,11 @@ install -m 0755 "$tmp/openmessage" "$tmp/textbridge-gateway" "$BIN/"
 for f in textbridge-openmessage.service textbridge-gateway.service; do
   curl -fsSL -o "/etc/systemd/system/$f" "$RAW/deploy/systemd/$f"
 done
-curl -fsSL -o /usr/local/bin/textbridge "$RAW/deploy/textbridge"
-chmod 0755 /usr/local/bin/textbridge
+# Write to a temp file and rename, so a running "textbridge update" (which is
+# this very script's caller) keeps reading its old copy undisturbed.
+curl -fsSL -o /usr/local/bin/.textbridge.new "$RAW/deploy/textbridge"
+chmod 0755 /usr/local/bin/.textbridge.new
+mv -f /usr/local/bin/.textbridge.new /usr/local/bin/textbridge
 
 say "Working out this server's web address"
 if [ -z "${TB_DOMAIN:-}" ]; then
@@ -135,6 +138,8 @@ if [ -n "$NEWPASS" ]; then
   echo "  Your passphrase (save it in your password manager NOW; it won't be shown again):"
   printf '\n      \033[1m%s\033[0m\n' "$NEWPASS"
 fi
-echo
-echo "  Next: link your phone with   sudo textbridge pair"
+if [ -n "$NEWPASS" ]; then
+  echo
+  echo "  Next: link your phone with   sudo textbridge pair"
+fi
 echo
