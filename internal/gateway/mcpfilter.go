@@ -27,7 +27,7 @@ READ THE THREAD BEFORE EVERY DRAFT. Before drafting any reply, call get_conversa
 
 GET CONTEXT FIRST. Read enough of the thread to understand what's going on before replying or summarizing. Use search_messages for past mentions of a topic. Phone numbers need the country code (+1...).
 
-If get_status shows Google Messages disconnected, tell the user the phone link needs attention (on the server: sudo textbridge pair).`
+SERVER UPKEEP. The server_* tools look after the textbridge server itself. If texts seem stuck or get_status shows a problem, run server_status (and server_logs if needed) and explain what you find in plain words. Say what you're about to do before server_update, server_restart or server_resync. If the phone link needs re-linking, send the user to the /pair page on their server (the connector URL with /pair instead of /mcp).`
 
 // DefaultTools is the set of OpenMessage tools Claude can see and call.
 // Everything else (WhatsApp/Signal-only features, file imports, charts and
@@ -71,7 +71,12 @@ func parseRPC(body []byte) ([]rpcMsg, bool) {
 	return []rpcMsg{m}, true
 }
 
-func (s *Server) toolAllowed(name string) bool { return s.tools[name] }
+func (s *Server) toolAllowed(name string) bool {
+	if _, ok := findAdminTool(name); ok {
+		return true
+	}
+	return s.tools[name]
+}
 
 // blockedCall returns the id of a tools/call for a hidden tool, if any.
 func (s *Server) blockedCall(msgs []rpcMsg) (json.RawMessage, string, bool) {
@@ -128,7 +133,7 @@ func (s *Server) rewriteResult(obj map[string]any) {
 			}
 			kept = append(kept, tm)
 		}
-		res["tools"] = kept
+		res["tools"] = append(kept, adminToolDefs()...)
 	}
 }
 

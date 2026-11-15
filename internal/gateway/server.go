@@ -77,6 +77,7 @@ type Server struct {
 	failures []time.Time
 	// web pairing page tokens (token -> expiry)
 	pairTokens map[string]time.Time
+	adminMu    sync.Mutex
 	lockedTo   time.Time
 }
 
@@ -534,6 +535,18 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 			log.Printf("blocked hidden tool %q", name)
 			rpcError(w, id, "tool not available: "+name)
 			return
+		}
+		if len(msgs) == 1 && msgs[0].Method == "tools/call" {
+			var p struct {
+				Name      string         `json:"name"`
+				Arguments map[string]any `json:"arguments"`
+			}
+			_ = json.Unmarshal(msgs[0].Params, &p)
+			if t, ok := findAdminTool(p.Name); ok {
+				log.Printf("server tool %s", p.Name)
+				s.handleAdminCall(w, msgs[0].ID, t, p.Arguments)
+				return
+			}
 		}
 		if needsRewrite(msgs) {
 			s.rewrite.ServeHTTP(w, r)

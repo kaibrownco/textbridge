@@ -1,0 +1,9 @@
+[Unit]
+Description=textbridge: watch for server upkeep requests from Claude
+
+[Path]
+PathExists=/var/lib/textbridge/gateway/admin/request
+Unit=textbridge-admin.service
+
+[Install]
+WantedBy=multi-user.target

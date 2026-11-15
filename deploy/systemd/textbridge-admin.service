@@ -1,0 +1,7 @@
+[Unit]
+Description=textbridge: run one server upkeep action (status, logs, update, restart, resync)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/textbridge admin-from-file
+TimeoutStartSec=15min

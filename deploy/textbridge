@@ -96,6 +96,57 @@ EOF
     rm -f "$log"
     systemctl start textbridge-openmessage
     ;;
+  admin-from-file)
+    # Run by textbridge-admin.service when Claude uses a server_* tool.
+    # Only the fixed actions below exist; nothing from the request is executed.
+    need_root admin-from-file
+    adir="$DATA/gateway/admin"
+    req="$adir/request"
+    [ -s "$req" ] || exit 0
+    id="$(sed -n 's/^id=\([A-Za-z0-9_-]*\)$/\1/p' "$req" | head -1)"
+    action="$(sed -n 's/^action=\([a-z]*\)$/\1/p' "$req" | head -1)"
+    lines="$(sed -n 's/^lines=\([0-9]*\)$/\1/p' "$req" | head -1)"
+    rm -f "$req"
+    [ -n "$id" ] || exit 0
+    result() { { echo "id=$id"; cat; } > "$adir/.result.tmp"; chown textbridge:textbridge "$adir/.result.tmp"; chmod 600 "$adir/.result.tmp"; mv -f "$adir/.result.tmp" "$adir/result"; }
+    history="$DATA/admin-history.log"
+    case "$action" in
+      status)
+        { "$0" status 2>&1; echo; echo "Recent upkeep:"; tail -5 "$history" 2>/dev/null | sed 's/^/  /' || true; } | result ;;
+      logs)
+        n="${lines:-80}"; [ "$n" -gt 300 ] && n=300
+        journalctl -u textbridge-openmessage -u textbridge-gateway -n 2000 --no-pager -o short-iso 2>&1 \
+          | grep -v -E 'HMAC mismatch|Received response with no pending request|accept-and-log rollout' | tail -n "$n" | result ;;
+      update)
+        echo "Update started $(date -u '+%H:%M UTC'). The connector may drop for a minute; check server_status in about 2 minutes." | result
+        echo "$(date -u '+%F %H:%M') update started" >> "$history"
+        if curl -fsSL "https://raw.githubusercontent.com/${REPO}/main/deploy/setup.sh" | bash > "$DATA/last-update.log" 2>&1; then
+          echo "$(date -u '+%F %H:%M') update finished OK" >> "$history"
+        else
+          echo "$(date -u '+%F %H:%M') update FAILED (see $DATA/last-update.log)" >> "$history"
+        fi ;;
+      restart)
+        echo "Restarting now. The connector may drop briefly; check server_status in a minute." | result
+        echo "$(date -u '+%F %H:%M') restart" >> "$history"
+        systemctl restart textbridge-openmessage textbridge-gateway ;;
+      resync)
+        env=/etc/textbridge/openmessage.env
+        sed -i '/^OPENMESSAGES_STARTUP_BACKFILL=/d' "$env"
+        echo "OPENMESSAGES_STARTUP_BACKFILL=deep" >> "$env"
+        echo "$(date -u '+%F %H:%M') history re-sync started" >> "$history"
+        since="$(date '+%Y-%m-%d %H:%M:%S')"
+        systemctl restart textbridge-openmessage
+        systemd-run --quiet --unit="textbridge-resync-$(date +%s)" --collect bash -c "
+          timeout 7200 journalctl -u textbridge-openmessage -f --since '$since' -o cat | grep -m1 'Deep backfill complete' > /run/tb-resync.txt
+          echo \"\$(date -u '+%F %H:%M') history re-sync done: \$(sed 's/.*Deep backfill complete //' /run/tb-resync.txt)\" >> '$history'
+          rm -f /run/tb-resync.txt
+          sed -i '/^OPENMESSAGES_STARTUP_BACKFILL=/d' '$env'
+          systemctl restart textbridge-openmessage" || true
+        echo "History re-sync started. It takes 20-60 minutes; keep the phone unlocked and on Wi-Fi. server_status shows when it's done." | result ;;
+      *)
+        echo "Unknown action." | result ;;
+    esac
+    ;;
   restart)
     need_root restart
     systemctl restart textbridge-openmessage textbridge-gateway caddy
