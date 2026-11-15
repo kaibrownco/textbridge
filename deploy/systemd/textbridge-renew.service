@@ -1,0 +1,15 @@
+[Unit]
+Description=textbridge: renew the Google sign-in (like a browser does)
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=textbridge
+Group=textbridge
+EnvironmentFile=/etc/textbridge/openmessage.env
+ExecStart=/opt/textbridge/bin/rotate-google-cookies --quiet
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/textbridge/openmessage

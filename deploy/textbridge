@@ -12,7 +12,7 @@ as_tb() { sudo -u textbridge env HOME="$DATA/openmessage" OPENMESSAGES_DATA_DIR=
 cmd="${1:-help}"
 case "$cmd" in
   status)
-    for s in textbridge-openmessage textbridge-gateway caddy; do
+    for s in textbridge-openmessage textbridge-gateway caddy textbridge-renew.timer; do
       printf '%-26s %s\n' "$s" "$(systemctl is-active "$s" || true)"
     done
     echo
@@ -20,6 +20,9 @@ case "$cmd" in
     journalctl -u textbridge-openmessage --no-pager -n 3000 -o cat 2>/dev/null \
       | grep -E "Connected to Google Messages|auth expired|supervisor parked|connection lost|Phone not responding|Phone responding again|Deep backfill complete" \
       | tail -5 | sed 's/^/  /'
+    echo
+    echo "Last sign-in renewal:"
+    journalctl -u textbridge-renew --no-pager -n 20 -o short 2>/dev/null | grep -E "rotate-google-cookies|Finished|Failed" | tail -2 | sed 's/^/  /'
     echo
     echo "Connector URL: https://$(cat /etc/textbridge/domain)/mcp"
     ;;

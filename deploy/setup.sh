@@ -46,7 +46,7 @@ curl -fsSL -o "$tmp/tb.sha256" "$REL/textbridge-linux-amd64.tar.gz.sha256"
 (cd "$tmp" && sed 's/  .*/  tb.tar.gz/' tb.sha256 | sha256sum -c --quiet) || die "download checksum didn't match"
 tar -xzf "$tmp/tb.tar.gz" -C "$tmp"
 install -m 0755 "$tmp/openmessage" "$tmp/textbridge-gateway" "$BIN/"
-for f in textbridge-openmessage.service textbridge-gateway.service; do
+for f in textbridge-openmessage.service textbridge-gateway.service textbridge-renew.service textbridge-renew.timer; do
   curl -fsSL -o "/etc/systemd/system/$f" "$RAW/deploy/systemd/$f"
 done
 curl -fsSL -o "$BIN/.rotate.new" "$RAW/deploy/rotate-google-cookies"
@@ -119,8 +119,8 @@ fi
 
 say "Starting everything"
 systemctl daemon-reload
-systemctl enable --quiet textbridge-openmessage textbridge-gateway caddy
-systemctl restart textbridge-openmessage textbridge-gateway caddy
+systemctl enable --quiet textbridge-openmessage textbridge-gateway caddy textbridge-renew.timer
+systemctl restart textbridge-openmessage textbridge-gateway caddy textbridge-renew.timer
 
 say "Checking the secure address (this can take a minute the first time)"
 ok=""

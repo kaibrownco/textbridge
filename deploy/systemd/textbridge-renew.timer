@@ -1,0 +1,11 @@
+[Unit]
+Description=textbridge: renew the Google sign-in every 30 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=30min
+RandomizedDelaySec=120
+Persistent=true
+
+[Install]
+WantedBy=timers.target
