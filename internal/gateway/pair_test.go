@@ -53,7 +53,7 @@ func TestPairPageFlow(t *testing.T) {
 
 	// Storage-table style paste is rejected with guidance.
 	r = f.pairPost("SIDabc\nHSIDdef\nOSIDghi", f.pw)
-	if b := body(r); r.StatusCode != 400 || !strings.Contains(b, "Storage") {
+	if b := body(r); r.StatusCode != 400 || !strings.Contains(b, "Header String") {
 		t.Fatalf("bad cookie: %d", r.StatusCode)
 	}
 
@@ -104,5 +104,28 @@ func TestPairPageEscapesStatus(t *testing.T) {
 	r, _ = f.client.Get(f.gw.URL + r.Header.Get("Location"))
 	if b := body(r); strings.Contains(b, "<script>x") {
 		t.Fatal("status message not escaped")
+	}
+}
+
+func TestNormalizeCookieFormats(t *testing.T) {
+	want := "SID=a; HSID=b; SSID=c; APISID=d; SAPISID=e; OSID=g"
+	cases := map[string]string{
+		"header":  "Cookie: SID=a; HSID=b; SSID=c; APISID=d; SAPISID=e; OSID=g",
+		"wrapped": "SID=a; HSID=b;\n SSID=c; APISID=d; SAPISID=e; OSID=g",
+		"json": `[{"name":"SID","value":"a","domain":".google.com"},{"name":"HSID","value":"b","domain":".google.com"},
+			{"name":"SSID","value":"c","domain":".google.com"},{"name":"APISID","value":"d","domain":".google.com"},
+			{"name":"SAPISID","value":"e","domain":".google.com"},{"name":"OSID","value":"g","domain":"messages.google.com"},
+			{"name":"X","value":"z","domain":".evil.com"}]`,
+		"netscape": ".google.com\tTRUE\t/\tTRUE\t0\tSID\ta\n#HttpOnly_.google.com\tTRUE\t/\tTRUE\t0\tHSID\tb\n" +
+			".google.com\tTRUE\t/\tTRUE\t0\tSSID\tc\n.google.com\tTRUE\t/\tTRUE\t0\tAPISID\td\n" +
+			".google.com\tTRUE\t/\tTRUE\t0\tSAPISID\te\nmessages.google.com\tFALSE\t/\tTRUE\t0\tOSID\tg\n",
+	}
+	for name, in := range cases {
+		if got := normalizeCookie(in); got != want {
+			t.Errorf("%s: got %q", name, got)
+		}
+		if !cookieLooksRight(normalizeCookie(in)) {
+			t.Errorf("%s: rejected", name)
+		}
 	}
 }

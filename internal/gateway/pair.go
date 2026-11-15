@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"bufio"
+	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
@@ -36,12 +37,13 @@ ol{padding-left:1.2em}li{margin:.35em 0}.err{color:#b00020}.ok{color:#137333}
 {{if eq .View "form"}}
 <h1>Link your phone</h1>
 <ol>
-<li>Open a <b>private window in Safari or Firefox</b>. Not Chrome: Chrome ties the sign-in to itself and the link dies within hours.</li>
-<li>Go to <b>messages.google.com/web</b> and sign in with the Google account your phone uses.</li>
-<li>Open the developer tools (Safari: Option+Cmd+I, after turning on Settings › Advanced › "Show features for web developers". Firefox: F12). Go to <b>Network</b> and reload the page.</li>
-<li>Click the first request to messages.google.com. Under <b>Request headers</b>, copy the whole <b>Cookie</b> value: one long line like <code>SID=…; HSID=…; … OSID=…</code></li>
+<li>Use <b>Safari or Firefox</b>, not Chrome (Chrome ties the sign-in to itself and the link dies within hours).</li>
+<li>One time: install the free <b>Cookie-Editor</b> extension (cookie-editor.com, for Safari or Firefox) and allow it in private windows.</li>
+<li>Open a <b>private window</b>, go to <b>messages.google.com/web</b> and sign in with the Google account your phone uses.</li>
+<li>Click the Cookie-Editor icon › <b>Export</b> › <b>Header String</b>. That copies everything needed.</li>
 <li>Paste it below. Keep Google Messages open on your phone so you can tap the emoji.</li>
 </ol>
+<p class="muted">No extension? Developer tools work too: Network tab, reload, click the first messages.google.com request, copy the whole <b>Cookie</b> request header.</p>
 {{if .Error}}<p class="err">{{.Error}}</p>{{end}}
 <form method="post" action="/pair">
 <textarea name="cookie" required placeholder="SID=…; HSID=…; SSID=…; … OSID=…"></textarea>
@@ -72,6 +74,59 @@ func (s *Server) renderPair(w http.ResponseWriter, status int, data map[string]a
 
 func (s *Server) handlePairGet(w http.ResponseWriter, _ *http.Request) {
 	s.renderPair(w, 200, map[string]any{"View": "form"})
+}
+
+// normalizeCookie accepts the formats people actually end up with and turns
+// them into a Cookie header string: the header itself (with or without a
+// "Cookie:" prefix), a Cookie-Editor / devtools JSON export (array of
+// {name, value, domain}), or a Netscape cookies.txt export.
+func normalizeCookie(in string) string {
+	in = strings.TrimSpace(in)
+	for _, p := range []string{"Cookie:", "cookie:"} {
+		in = strings.TrimSpace(strings.TrimPrefix(in, p))
+	}
+	googleDomain := func(d string) bool { return d == "" || strings.HasSuffix(strings.TrimPrefix(d, "."), "google.com") }
+	join := func(pairs [][2]string) string {
+		seen := map[string]bool{}
+		var parts []string
+		for _, p := range pairs {
+			if p[0] == "" || seen[p[0]] {
+				continue
+			}
+			seen[p[0]] = true
+			parts = append(parts, p[0]+"="+p[1])
+		}
+		return strings.Join(parts, "; ")
+	}
+	if strings.HasPrefix(in, "[") {
+		var arr []struct {
+			Name   string `json:"name"`
+			Value  string `json:"value"`
+			Domain string `json:"domain"`
+		}
+		if json.Unmarshal([]byte(in), &arr) == nil {
+			var pairs [][2]string
+			for _, c := range arr {
+				if googleDomain(c.Domain) {
+					pairs = append(pairs, [2]string{c.Name, c.Value})
+				}
+			}
+			return join(pairs)
+		}
+	}
+	if strings.Contains(in, "\t") && !strings.Contains(in, "; ") {
+		var pairs [][2]string
+		for _, line := range strings.Split(in, "\n") {
+			f := strings.Split(strings.TrimRight(line, "\r"), "\t")
+			if len(f) == 7 && !strings.HasPrefix(f[0], "# ") && googleDomain(strings.TrimPrefix(f[0], "#HttpOnly_")) {
+				pairs = append(pairs, [2]string{f[5], f[6]})
+			}
+		}
+		if len(pairs) > 0 {
+			return join(pairs)
+		}
+	}
+	return strings.Join(strings.Fields(in), " ")
 }
 
 // cookieLooksRight checks for the names pairing needs, so a wrong paste
@@ -107,10 +162,9 @@ func (s *Server) handlePairPost(w http.ResponseWriter, r *http.Request) {
 		s.renderPair(w, 401, map[string]any{"View": "form", "Error": "That passphrase isn't right."})
 		return
 	}
-	cookie := strings.TrimSpace(r.PostForm.Get("cookie"))
-	cookie = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(cookie, "Cookie:"), "cookie:"))
+	cookie := normalizeCookie(r.PostForm.Get("cookie"))
 	if !cookieLooksRight(cookie) {
-		s.renderPair(w, 400, map[string]any{"View": "form", "Error": "That doesn't look like the Cookie request header. It should be one long line of name=value; pairs and include SID=, HSID=, SSID=, APISID=, SAPISID= and OSID=. Copy it from a messages.google.com request in the Network tab, not from the Storage/cookies list."})
+		s.renderPair(w, 400, map[string]any{"View": "form", "Error": "That doesn't look like a complete Google Messages sign-in. It needs SID, HSID, SSID, APISID, SAPISID and OSID. Make sure you're signed in on messages.google.com/web (not another Google page), then export from Cookie-Editor as Header String, or copy the Cookie request header from the Network tab."})
 		return
 	}
 	dir := s.pairDir()

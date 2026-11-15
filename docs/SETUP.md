@@ -65,11 +65,13 @@ It takes a few minutes. At the end it prints:
 ## 4. Link your phone
 
 Open **`<your connector URL without /mcp>/pair`** (for example
-`https://35-252-173-21.sslip.io/pair`) and follow the steps on the page:
-open a **private window in Safari or Firefox** (not Chrome), sign in at
-messages.google.com/web, copy the `Cookie` request header from the
-developer tools' Network tab, paste it into the page with your
-passphrase, and tap the emoji the page shows.
+`https://35-252-173-21.sslip.io/pair`) and follow the steps on the page. In short: install the free
+**Cookie-Editor** extension (cookie-editor.com) in **Safari or Firefox**
+(not Chrome) and allow it in private windows; open a private window and
+sign in at messages.google.com/web; click Cookie-Editor › Export ›
+**Header String**; paste that into the page with your passphrase; tap the
+emoji the page shows. (Copying the `Cookie` request header from the
+developer tools' Network tab works too.)
 
 **Don't use Chrome for this.** Chrome binds Google sign-ins to itself
 (device-bound session credentials), so cookies copied out of Chrome stop
