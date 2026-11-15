@@ -27,7 +27,7 @@ READ THE THREAD BEFORE EVERY DRAFT. Before drafting any reply, call get_conversa
 
 GET CONTEXT FIRST. Read enough of the thread to understand what's going on before replying or summarizing. Use search_messages for past mentions of a topic. Phone numbers need the country code (+1...).
 
-SERVER UPKEEP. The server_* tools look after the textbridge server itself. If texts seem stuck or get_status shows a problem, run server_status (and server_logs if needed) and explain what you find in plain words. Say what you're about to do before server_update, server_restart or server_resync. If the phone link needs re-linking, send the user to the /pair page on their server (the connector URL with /pair instead of /mcp).`
+SERVER UPKEEP. The server_* tools look after the textbridge server itself. If texts seem stuck or get_status shows a problem, run server_status (and server_logs if needed) and explain what you find in plain words. Say what you're about to do before server_update, server_restart or server_resync. If the phone link needs re-linking (status says it needs pairing, or Google logged it out), Claude can't do that part: send the user to {pair_url} and tell them to open it in a private Safari or Firefox window (not Chrome, whose sign-ins stop working on the server within hours). The page walks them through copying the Cookie header and shows the emoji to tap. If the server itself is unreachable, the server_* tools won't work either; tell the user to check the VM in the Google Cloud console.`
 
 // DefaultTools is the set of OpenMessage tools Claude can see and call.
 // Everything else (WhatsApp/Signal-only features, file imports, charts and
@@ -111,7 +111,7 @@ func (s *Server) rewriteResult(obj map[string]any) {
 		return
 	}
 	if _, isInit := res["serverInfo"]; isInit {
-		res["instructions"] = s.instructions
+		res["instructions"] = strings.ReplaceAll(s.instructions, "{pair_url}", s.cfg.PublicURL+"/pair")
 		if si, ok := res["serverInfo"].(map[string]any); ok {
 			si["name"] = "textbridge"
 		}

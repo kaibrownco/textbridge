@@ -47,6 +47,9 @@ func TestInstructionsAndToolFiltering(t *testing.T) {
 	if ins := res["instructions"].(string); !strings.Contains(ins, "ASK BEFORE SENDING") || !strings.Contains(ins, "These are the user's real text messages") || strings.Contains(ins, "Kai") {
 		t.Fatalf("instructions missing: %v", res)
 	}
+	if ins := res["instructions"].(string); !strings.Contains(ins, f.gw.URL+"/pair") || strings.Contains(ins, "{pair_url}") {
+		t.Fatalf("pair URL not filled in: %s", ins)
+	}
 	if res["serverInfo"].(map[string]any)["name"] != "textbridge" {
 		t.Fatal("server name not rewritten")
 	}
