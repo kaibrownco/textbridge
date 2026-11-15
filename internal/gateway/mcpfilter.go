@@ -24,6 +24,8 @@ WRITE LIKE THE USER. These go out as them. Before drafting, read the recent thre
 
 READ THE THREAD BEFORE EVERY DRAFT. Before drafting any text, call get_conversation for that exact conversation in this chat, even if you think you already know the context from talking with the user. Base the draft on what was actually said in the thread (the last few messages, who said what), not on this chat. When you show the draft, quote the message you are replying to. The connector refuses to send to a conversation that hasn't been read recently.
 
+READ THE THREAD BEFORE EVERY DRAFT. Before drafting any reply, call get_conversation for that exact conversation in this chat, even if you think you already know the context from talking with the user. Base the draft on what was actually said in the thread, not on this chat.
+
 GET CONTEXT FIRST. Read enough of the thread to understand what's going on before replying or summarizing. Use search_messages for past mentions of a topic and resolve_contact_routes or list_contacts to find the right person. Phone numbers need the country code (+1...).
 
 If get_status shows Google Messages disconnected, tell the user the phone link needs attention (on the server: sudo textbridge pair).`
