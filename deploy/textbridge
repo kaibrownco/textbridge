@@ -16,8 +16,10 @@ case "$cmd" in
       printf '%-26s %s\n' "$s" "$(systemctl is-active "$s" || true)"
     done
     echo
-    echo "Phone link:"
-    curl -fsS --max-time 5 http://127.0.0.1:7007/api/status 2>/dev/null | head -c 600 || echo "  (backend not answering)"
+    echo "Phone link (latest events):"
+    journalctl -u textbridge-openmessage --no-pager -n 3000 -o cat 2>/dev/null \
+      | grep -E "Connected to Google Messages|auth expired|supervisor parked|connection lost|Phone not responding|Phone responding again|Deep backfill complete" \
+      | tail -5 | sed 's/^/  /'
     echo
     echo "Connector URL: https://$(cat /etc/textbridge/domain)/mcp"
     ;;
@@ -44,6 +46,19 @@ EOF
     as_tb "$BIN/openmessage" pair --google
     echo
     echo "Paired. Starting the service; your history will sync in the background."
+    ;;
+  backfill)
+    need_root backfill
+    env=/etc/textbridge/openmessage.env
+    sed -i '/^OPENMESSAGES_STARTUP_BACKFILL=/d' "$env"
+    echo "OPENMESSAGES_STARTUP_BACKFILL=deep" >> "$env"
+    trap 'sed -i "/^OPENMESSAGES_STARTUP_BACKFILL=/d" "$env"; systemctl restart textbridge-openmessage' EXIT
+    since="$(date '+%Y-%m-%d %H:%M:%S')"
+    systemctl restart textbridge-openmessage
+    echo "Downloading your full text history. Keep your phone unlocked and on Wi-Fi."
+    echo "This can take 20-60 minutes. Leave this window open."
+    journalctl -u textbridge-openmessage -f --since "$since" -o cat \
+      | grep -m1 "Deep backfill complete" | sed 's/^/Done: /'
     ;;
   restart)
     need_root restart
@@ -78,6 +93,7 @@ EOF
 textbridge commands (run with sudo):
   status         is everything running, and is the phone linked
   pair           link (or re-link) your phone
+  backfill       re-download your full text history (keep phone awake)
   restart        restart all services
   update         install the latest version (keeps your data)
   new-password   make a new passphrase and sign Claude out everywhere

@@ -102,6 +102,7 @@ In the server's SSH window:
 |---|---|
 | Is it running? Is my phone linked? | `sudo textbridge status` |
 | Texts stopped syncing | `sudo textbridge pair` |
+| Old texts missing | `sudo textbridge backfill` |
 | Get the latest version | `sudo textbridge update` |
 | Lost your phone / passphrase leaked | `sudo textbridge new-password` |
 | See what's happening | `sudo textbridge logs` |
