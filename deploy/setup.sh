@@ -25,7 +25,7 @@ command -v apt-get >/dev/null || die "use a Debian or Ubuntu image"
 say "Installing basics"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq curl ca-certificates gnupg python3 debian-keyring debian-archive-keyring apt-transport-https >/dev/null
+apt-get install -y -qq curl ca-certificates gnupg debian-keyring debian-archive-keyring apt-transport-https >/dev/null
 
 say "Adding 1 GB of swap (the free server only has 1 GB of memory)"
 if ! swapon --show | grep -q /swapfile; then
@@ -46,11 +46,15 @@ curl -fsSL -o "$tmp/tb.sha256" "$REL/textbridge-linux-amd64.tar.gz.sha256"
 (cd "$tmp" && sed 's/  .*/  tb.tar.gz/' tb.sha256 | sha256sum -c --quiet) || die "download checksum didn't match"
 tar -xzf "$tmp/tb.tar.gz" -C "$tmp"
 install -m 0755 "$tmp/openmessage" "$tmp/textbridge-gateway" "$BIN/"
-for f in textbridge-openmessage.service textbridge-gateway.service textbridge-renew.service textbridge-renew.timer; do
+for f in textbridge-openmessage.service textbridge-gateway.service; do
   curl -fsSL -o "/etc/systemd/system/$f" "$RAW/deploy/systemd/$f"
 done
-curl -fsSL -o "$BIN/.rotate.new" "$RAW/deploy/rotate-google-cookies"
-chmod 0755 "$BIN/.rotate.new" && mv -f "$BIN/.rotate.new" "$BIN/rotate-google-cookies"
+# Remove the old sign-in renewal timer (not needed with Firefox/Safari cookies).
+if [ -e /etc/systemd/system/textbridge-renew.timer ]; then
+  systemctl disable --now --quiet textbridge-renew.timer 2>/dev/null || true
+  rm -f /etc/systemd/system/textbridge-renew.timer /etc/systemd/system/textbridge-renew.service \
+    "$BIN/rotate-google-cookies" "$DATA/openmessage/rotated-cookies.json"
+fi
 # Write to a temp file and rename, so a running "textbridge update" (which is
 # this very script's caller) keeps reading its old copy undisturbed.
 curl -fsSL -o /usr/local/bin/.textbridge.new "$RAW/deploy/textbridge"
@@ -75,7 +79,6 @@ OPENMESSAGES_HOST=127.0.0.1
 OPENMESSAGES_PORT=7007
 OPENMESSAGES_EXPORT_DIR=$DATA/openmessage/exports
 OPENMESSAGES_MACOS_NOTIFICATIONS=0
-OPENMESSAGE_COOKIE_REFRESH_SCRIPT=$BIN/rotate-google-cookies
 EOF
 cat > "$ETC/gateway.env" <<EOF
 TB_PUBLIC_URL=$PUBLIC_URL
@@ -119,8 +122,8 @@ fi
 
 say "Starting everything"
 systemctl daemon-reload
-systemctl enable --quiet textbridge-openmessage textbridge-gateway caddy textbridge-renew.timer
-systemctl restart textbridge-openmessage textbridge-gateway caddy textbridge-renew.timer
+systemctl enable --quiet textbridge-openmessage textbridge-gateway caddy
+systemctl restart textbridge-openmessage textbridge-gateway caddy
 
 say "Checking the secure address (this can take a minute the first time)"
 ok=""
