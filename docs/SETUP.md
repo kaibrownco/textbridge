@@ -8,8 +8,11 @@
 2. Paste this and press Enter:
 
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/kaibrownco/textbridge/main/deploy/gcp-create.sh | bash
+   curl -fsSL https://raw.githubusercontent.com/kaibrownco/textbridge/main/deploy/gcp-create.sh | TB_OWNER=YourFirstName bash
    ```
+
+   Put your first name in place of `YourFirstName`. Claude uses it ("ask
+   Sam before sending").
 
    It creates the free server, opens web access, sets a $1 budget alert,
    installs everything, and prints your **connector URL** and **passphrase**.

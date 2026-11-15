@@ -71,7 +71,17 @@ OPENMESSAGES_PORT=7007
 OPENMESSAGES_EXPORT_DIR=$DATA/openmessage/exports
 OPENMESSAGES_MACOS_NOTIFICATIONS=0
 EOF
+# Owner's first name for Claude's instructions: keep the current one, else
+# take it from instance metadata (set by gcp-create.sh), else leave blank.
+OWNER="$(sed -n 's/^TB_OWNER=//p' "$ETC/gateway.env" 2>/dev/null || true)"
+if [ -z "$OWNER" ]; then
+  OWNER="$(curl -fsS -H 'Metadata-Flavor: Google' \
+    http://169.254.169.254/computeMetadata/v1/instance/attributes/tb-owner 2>/dev/null || true)"
+fi
+OWNER="$(printf '%s' "$OWNER" | tr -cd '[:alnum:] ._-' | cut -c1-40)"
+
 cat > "$ETC/gateway.env" <<EOF
+TB_OWNER=$OWNER
 TB_PUBLIC_URL=$PUBLIC_URL
 TB_LISTEN=127.0.0.1:8080
 TB_UPSTREAM=http://127.0.0.1:7007

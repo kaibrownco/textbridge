@@ -43,6 +43,8 @@ type Config struct {
 	Instructions string
 	// Tools Claude may see and call (default: DefaultTools).
 	Tools []string
+	// Owner is the account holder's first name, used in the instructions.
+	Owner string
 }
 
 type authCode struct {
@@ -67,6 +69,7 @@ type Server struct {
 	proxy        *httputil.ReverseProxy
 	rewrite      *httputil.ReverseProxy
 	instructions string
+	owner        string
 	tools        map[string]bool
 	mux          *http.ServeMux
 	now          func() time.Time
@@ -96,6 +99,10 @@ func New(cfg Config, store *Store, pwHash string) (*Server, error) {
 	s.instructions = cfg.Instructions
 	if strings.TrimSpace(s.instructions) == "" {
 		s.instructions = DefaultInstructions
+	}
+	s.owner = strings.TrimSpace(cfg.Owner)
+	if s.owner == "" {
+		s.owner = "the owner"
 	}
 	tools := cfg.Tools
 	if len(tools) == 0 {
