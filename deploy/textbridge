@@ -19,7 +19,7 @@ case "$cmd" in
     echo "Phone link (latest events):"
     journalctl -u textbridge-openmessage --no-pager -n 3000 -o cat 2>/dev/null \
       | grep -E "Connected to Google Messages|auth expired|supervisor parked|connection lost|Phone not responding|Phone responding again|Deep backfill complete" \
-      | tail -5 | sed 's/^/  /'
+      | tail -5 | sed -e 's/\x1b\[[0-9;]*m//g' -e 's/^/  /'
     echo
     echo "Connector URL: https://$(cat /etc/textbridge/domain)/mcp"
     ;;
