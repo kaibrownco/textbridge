@@ -75,10 +75,7 @@ type Server struct {
 	codes    map[string]*authCode
 	pending  map[string]*pendingAuth
 	failures []time.Time
-	// read-before-send tracking
-	readConvs   map[string]time.Time
-	lastAnyRead time.Time
-	lockedTo    time.Time
+	lockedTo time.Time
 }
 
 func New(cfg Config, store *Store, pwHash string) (*Server, error) {
@@ -88,14 +85,13 @@ func New(cfg Config, store *Store, pwHash string) (*Server, error) {
 		return nil, err
 	}
 	s := &Server{
-		cfg:       cfg,
-		store:     store,
-		pwHash:    pwHash,
-		now:       time.Now,
-		codes:     map[string]*authCode{},
-		pending:   map[string]*pendingAuth{},
-		readConvs: map[string]time.Time{},
-		mux:       http.NewServeMux(),
+		cfg:     cfg,
+		store:   store,
+		pwHash:  pwHash,
+		now:     time.Now,
+		codes:   map[string]*authCode{},
+		pending: map[string]*pendingAuth{},
+		mux:     http.NewServeMux(),
 	}
 	s.instructions = cfg.Instructions
 	if strings.TrimSpace(s.instructions) == "" {
@@ -533,13 +529,6 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 			rpcError(w, id, "tool not available: "+name)
 			return
 		}
-		calls := toolCalls(msgs)
-		if id, msg, blocked := s.checkSend(calls); blocked {
-			log.Printf("refused send: thread not read first")
-			rpcError(w, id, msg)
-			return
-		}
-		s.noteReads(calls)
 		if needsRewrite(msgs) {
 			s.rewrite.ServeHTTP(w, r)
 			return

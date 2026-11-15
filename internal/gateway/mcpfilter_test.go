@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestInstructionsAndToolFiltering(t *testing.T) {
@@ -87,36 +86,5 @@ func TestLoginPageAllowsRedirectToClaude(t *testing.T) {
 	csp := resp.Header.Get("Content-Security-Policy")
 	if !strings.Contains(csp, "form-action 'self' https://claude.ai https://claude.com") {
 		t.Fatalf("CSP would block the redirect back to Claude: %q", csp)
-	}
-}
-
-func TestSendRequiresReadingThreadFirst(t *testing.T) {
-	f := newFixture(t)
-	access, _, _ := f.login(f.pw)
-	call := func(name, args string) map[string]any {
-		resp := f.mcp("POST", access, `{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"`+name+`","arguments":`+args+`}}`)
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		var m map[string]any
-		_ = json.Unmarshal(body, &m)
-		return m
-	}
-	if m := call("send_to_conversation", `{"conversation_id":"12","message":"hi"}`); m["error"] == nil {
-		t.Fatalf("send to unread conversation allowed: %v", m)
-	}
-	if m := call("send_message", `{"recipient":"+15551234567","message":"hi"}`); m["error"] == nil {
-		t.Fatalf("send_message with no reads allowed: %v", m)
-	}
-	call("get_conversation", `{"conversation_id":"99"}`)
-	if m := call("send_to_conversation", `{"conversation_id":"12","message":"hi"}`); m["error"] == nil {
-		t.Fatal("reading a different thread unlocked this one")
-	}
-	call("get_conversation", `{"conversation_id":12}`) // numeric id form
-	if m := call("send_to_conversation", `{"conversation_id":"12","message":"hi"}`); m["error"] != nil {
-		t.Fatalf("send after reading refused: %v", m)
-	}
-	f.srv.now = func() time.Time { return time.Now().Add(2 * time.Hour) }
-	if m := call("send_to_conversation", `{"conversation_id":"12","message":"hi"}`); m["error"] == nil {
-		t.Fatal("stale read still counted")
 	}
 }
