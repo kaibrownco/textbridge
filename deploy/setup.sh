@@ -36,6 +36,7 @@ fi
 say "Creating the textbridge account and folders"
 id textbridge >/dev/null 2>&1 || useradd --system --home-dir "$DATA" --shell /usr/sbin/nologin textbridge
 install -d -m 0750 -o textbridge -g textbridge "$DATA" "$DATA/openmessage" "$DATA/gateway"
+install -d -m 0700 -o textbridge -g textbridge "$DATA/gateway/pair"
 install -d -m 0755 "$BIN" "$ETC"
 
 say "Downloading textbridge"
@@ -46,7 +47,7 @@ curl -fsSL -o "$tmp/tb.sha256" "$REL/textbridge-linux-amd64.tar.gz.sha256"
 (cd "$tmp" && sed 's/  .*/  tb.tar.gz/' tb.sha256 | sha256sum -c --quiet) || die "download checksum didn't match"
 tar -xzf "$tmp/tb.tar.gz" -C "$tmp"
 install -m 0755 "$tmp/openmessage" "$tmp/textbridge-gateway" "$BIN/"
-for f in textbridge-openmessage.service textbridge-gateway.service; do
+for f in textbridge-openmessage.service textbridge-gateway.service textbridge-pair.path textbridge-pair.service; do
   curl -fsSL -o "/etc/systemd/system/$f" "$RAW/deploy/systemd/$f"
 done
 # Remove the old sign-in renewal timer (not needed with Firefox/Safari cookies).
@@ -122,8 +123,8 @@ fi
 
 say "Starting everything"
 systemctl daemon-reload
-systemctl enable --quiet textbridge-openmessage textbridge-gateway caddy
-systemctl restart textbridge-openmessage textbridge-gateway caddy
+systemctl enable --quiet textbridge-openmessage textbridge-gateway caddy textbridge-pair.path
+systemctl restart textbridge-openmessage textbridge-gateway caddy textbridge-pair.path
 
 say "Checking the secure address (this can take a minute the first time)"
 ok=""
@@ -146,6 +147,6 @@ if [ -n "$NEWPASS" ]; then
 fi
 if [ -n "$NEWPASS" ]; then
   echo
-  echo "  Next: link your phone with   sudo textbridge pair"
+  echo "  Next: link your phone at   $PUBLIC_URL/pair"
 fi
 echo

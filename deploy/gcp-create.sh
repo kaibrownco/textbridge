@@ -104,7 +104,6 @@ if [ -n "$PASSPHRASE" ]; then
   echo "  Your passphrase. Save it in your password manager NOW; it won't be shown again:"
   printf '\n      \033[1m%s\033[0m\n\n' "$PASSPHRASE"
 fi
-echo "  Next, link your phone. Open an SSH window to the server:"
-echo "      gcloud compute ssh $NAME --zone $ZONE"
-echo "  and run:  sudo textbridge pair"
+echo "  Next, link your phone. Open this page in Safari or Firefox (not Chrome):"
+printf '\n      \033[1m%s/pair\033[0m\n\n' "$URL"
 echo

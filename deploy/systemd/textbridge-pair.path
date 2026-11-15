@@ -1,0 +1,9 @@
+[Unit]
+Description=textbridge: watch for phone-linking requests from the /pair page
+
+[Path]
+PathExists=/var/lib/textbridge/gateway/pair/request.cookie
+Unit=textbridge-pair.service
+
+[Install]
+WantedBy=multi-user.target

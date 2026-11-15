@@ -1,0 +1,6 @@
+[Unit]
+Description=textbridge: link the phone (requested from the /pair page)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/textbridge pair-from-file

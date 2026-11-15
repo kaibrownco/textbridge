@@ -75,7 +75,9 @@ type Server struct {
 	codes    map[string]*authCode
 	pending  map[string]*pendingAuth
 	failures []time.Time
-	lockedTo time.Time
+	// web pairing page tokens (token -> expiry)
+	pairTokens map[string]time.Time
+	lockedTo   time.Time
 }
 
 func New(cfg Config, store *Store, pwHash string) (*Server, error) {
@@ -85,13 +87,14 @@ func New(cfg Config, store *Store, pwHash string) (*Server, error) {
 		return nil, err
 	}
 	s := &Server{
-		cfg:     cfg,
-		store:   store,
-		pwHash:  pwHash,
-		now:     time.Now,
-		codes:   map[string]*authCode{},
-		pending: map[string]*pendingAuth{},
-		mux:     http.NewServeMux(),
+		cfg:        cfg,
+		store:      store,
+		pwHash:     pwHash,
+		now:        time.Now,
+		codes:      map[string]*authCode{},
+		pending:    map[string]*pendingAuth{},
+		pairTokens: map[string]time.Time{},
+		mux:        http.NewServeMux(),
 	}
 	s.instructions = cfg.Instructions
 	if strings.TrimSpace(s.instructions) == "" {
@@ -133,10 +136,13 @@ func New(cfg Config, store *Store, pwHash string) (*Server, error) {
 	s.mux.HandleFunc("POST /authorize", s.handleAuthorizePost)
 	s.mux.HandleFunc("POST /token", s.handleToken)
 	s.mux.HandleFunc("/mcp", s.handleMCP)
+	s.mux.HandleFunc("GET /pair", s.handlePairGet)
+	s.mux.HandleFunc("POST /pair", s.handlePairPost)
+	s.mux.HandleFunc("GET /pair/wait", s.handlePairWait)
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			w.Write([]byte("textbridge is running. Add " + s.cfg.PublicURL + "/mcp to Claude as a custom connector.\n"))
+			w.Write([]byte("textbridge is running. Add " + s.cfg.PublicURL + "/mcp to Claude as a custom connector. Link or re-link your phone at " + s.cfg.PublicURL + "/pair\n"))
 			return
 		}
 		http.NotFound(w, r)

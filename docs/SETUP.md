@@ -13,7 +13,7 @@
 
    It creates the free server, opens web access, sets a $1 budget alert,
    installs everything, and prints your **connector URL** and **passphrase**.
-3. Then do step 4 (link your phone) and step 5 (add it to Claude) below.
+3. Open the `/pair` link it prints to link your phone (step 4), then add the connector to Claude (step 5).
 
 The manual steps below do the same thing by hand.
 
@@ -64,27 +64,22 @@ It takes a few minutes. At the end it prints:
 
 ## 4. Link your phone
 
-In the same SSH window:
-
-```bash
-sudo textbridge pair
-```
-
-Follow the steps it prints. In short: open a **private window in Firefox or
-Safari**, sign in at messages.google.com/web, copy the `Cookie` request
-header from the developer tools' Network tab (the `name=value; ...` line,
-not the Storage/cookies table), paste it, press Enter and then Ctrl+D, and
-tap the matching emoji on your phone.
+Open **`<your connector URL without /mcp>/pair`** (for example
+`https://35-252-173-21.sslip.io/pair`) and follow the steps on the page:
+open a **private window in Safari or Firefox** (not Chrome), sign in at
+messages.google.com/web, copy the `Cookie` request header from the
+developer tools' Network tab, paste it into the page with your
+passphrase, and tap the emoji the page shows.
 
 **Don't use Chrome for this.** Chrome binds Google sign-ins to itself
 (device-bound session credentials), so cookies copied out of Chrome stop
 working on the server within a couple of hours.
 
 Your normal Messages for web keeps working: textbridge links as a tablet,
-which has its own slot.
+which has its own slot. Your text history then syncs in the background.
 
-Your full text history then syncs in the background. That can take a
-while the first time.
+If texts ever stop coming through, use the same page to re-link.
+(`sudo textbridge pair` on the server does the same thing from a terminal.)
 
 ## 5. Add it to Claude
 
@@ -106,7 +101,7 @@ In the server's SSH window:
 | Problem | Command |
 |---|---|
 | Is it running? Is my phone linked? | `sudo textbridge status` |
-| Texts stopped syncing | `sudo textbridge pair` |
+| Texts stopped syncing | re-link at `…/pair` (or `sudo textbridge pair`) |
 | Old texts missing | `sudo textbridge backfill` |
 | Get the latest version | `sudo textbridge update` |
 | Lost your phone / passphrase leaked | `sudo textbridge new-password` |
