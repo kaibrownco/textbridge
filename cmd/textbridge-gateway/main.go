@@ -94,7 +94,6 @@ func serve(stateDir string) {
 		RedirectHosts: hosts,
 		Instructions:  instructions,
 		Tools:         tools,
-		Owner:         env("TB_OWNER", ""),
 	}, st, hash)
 	if err != nil {
 		log.Fatal(err)

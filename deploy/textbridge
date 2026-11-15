@@ -65,15 +65,6 @@ EOF
     echo
     echo "Every Claude session was signed out. Reconnect in Claude's connector settings."
     ;;
-  set-name)
-    need_root set-name
-    name="$(printf '%s' "${2:-}" | tr -cd '[:alnum:] ._-' | cut -c1-40)"
-    [ -n "$name" ] || { echo "Usage: sudo textbridge set-name YourFirstName"; exit 1; }
-    sed -i '/^TB_OWNER=/d' /etc/textbridge/gateway.env
-    echo "TB_OWNER=$name" >> /etc/textbridge/gateway.env
-    systemctl restart textbridge-gateway
-    echo "Claude will now refer to you as $name. Start a new chat in Claude to pick it up."
-    ;;
   sign-out-all)
     need_root sign-out-all
     as_tb "$BIN/textbridge-gateway" sign-out-all
@@ -90,7 +81,6 @@ textbridge commands (run with sudo):
   restart        restart all services
   update         install the latest version (keeps your data)
   new-password   make a new passphrase and sign Claude out everywhere
-  set-name NAME  the first name Claude uses for you in its instructions
   sign-out-all   sign Claude out everywhere (keeps the passphrase)
   logs [N]       show recent log lines
 EOF

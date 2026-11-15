@@ -33,7 +33,7 @@ func TestInstructionsAndToolFiltering(t *testing.T) {
 	defer up.Close()
 
 	f := newFixture(t)
-	srv, err := New(Config{PublicURL: f.gw.URL, Upstream: up.URL, RedirectHosts: []string{"claude.ai"}, Owner: "Sam"}, f.srv.store, f.srv.pwHash)
+	srv, err := New(Config{PublicURL: f.gw.URL, Upstream: up.URL, RedirectHosts: []string{"claude.ai"}}, f.srv.store, f.srv.pwHash)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestInstructionsAndToolFiltering(t *testing.T) {
 	resp := f.mcp("POST", access, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`)
 	m := decode(t, resp)
 	res := m["result"].(map[string]any)
-	if ins := res["instructions"].(string); !strings.Contains(ins, "ASK BEFORE SENDING") || !strings.Contains(ins, "These are Sam's real text messages") || strings.Contains(ins, "{owner}") {
+	if ins := res["instructions"].(string); !strings.Contains(ins, "ASK BEFORE SENDING") || !strings.Contains(ins, "These are the user's real text messages") || strings.Contains(ins, "Kai") {
 		t.Fatalf("instructions missing: %v", res)
 	}
 	if res["serverInfo"].(map[string]any)["name"] != "textbridge" {
@@ -58,7 +58,7 @@ func TestInstructionsAndToolFiltering(t *testing.T) {
 	if strings.Contains(s, "import_messages") || !strings.Contains(s, "get_conversation") {
 		t.Fatalf("tool filter wrong: %s", s)
 	}
-	if !strings.Contains(s, "ONLY call this after Sam has approved") || !strings.HasPrefix(s, "event: message\ndata: ") {
+	if !strings.Contains(s, "ONLY call this after the user has approved") || !strings.HasPrefix(s, "event: message\ndata: ") {
 		t.Fatalf("send note or SSE framing missing: %s", s)
 	}
 

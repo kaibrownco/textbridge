@@ -29,7 +29,7 @@ Claude ──https──▶ Caddy ──▶ textbridge-gateway ──▶ OpenMes
 
   The gateway also shapes what Claude sees. On connect it sends
   [instructions](internal/gateway/mcpfilter.go): ask before sending, match
-  Kai's tone from his own past texts, read the thread first. It shows only
+  the user's tone from their own past texts, read the thread first. It shows only
   12 of OpenMessage's tools (reading, searching, sending, reacting) and
   refuses calls to the rest. To change the instructions, put your own text
   in a file and set `TB_INSTRUCTIONS_FILE` in `/etc/textbridge/gateway.env`.

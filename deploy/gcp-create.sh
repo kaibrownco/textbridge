@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 # One-paste textbridge setup from Google Cloud Shell.
 #
-#   curl -fsSL https://raw.githubusercontent.com/kaibrownco/textbridge/main/deploy/gcp-create.sh | TB_OWNER=YourFirstName bash
-#
-# TB_OWNER is your first name; Claude's instructions use it ("These are
-# Sam's texts... ask Sam before sending").
+#   curl -fsSL https://raw.githubusercontent.com/kaibrownco/textbridge/main/deploy/gcp-create.sh | bash
 # Creates a free e2-micro server (us-west1), opens https, sets a $1 budget
 # alert, installs textbridge on it, and prints your connector URL and
 # passphrase. Safe to run again.
@@ -70,10 +67,6 @@ fi
 EOF
   printf '%s' "$HASH" > "$tmp/hash"
   meta="startup-script=$tmp/startup.sh,tb-password-hash=$tmp/hash"
-  if [ -n "${TB_OWNER:-}" ]; then
-    printf '%s' "$TB_OWNER" > "$tmp/owner"
-    meta="$meta,tb-owner=$tmp/owner"
-  fi
 
   say "Creating the free server (e2-micro, Oregon, 30 GB standard disk)"
   gcloud compute instances create "$NAME" --zone "$ZONE" \
