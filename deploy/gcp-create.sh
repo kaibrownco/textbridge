@@ -15,6 +15,10 @@ say() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 die() { printf '\n\033[1;31mStopped: %s\033[0m\n' "$*" >&2; exit 1; }
 
 command -v gcloud >/dev/null || die "run this in Google Cloud Shell"
+# This script is usually piped in (curl ... | bash), so stdin IS the script.
+# Never let gcloud read it: a prompt such as "enable this API? (y/N)" would
+# swallow the rest of the script and the run would end silently.
+gcloud() { command gcloud "$@" </dev/null; }
 
 say "Picking your project"
 PROJECT="$(gcloud config get-value project 2>/dev/null || true)"
@@ -34,11 +38,22 @@ say "Setting a \$1 budget alert"
 if gcloud billing budgets list --billing-account="${BILLING#billingAccounts/}" --format='value(displayName)' 2>/dev/null | grep -qx textbridge; then
   echo "Already set."
 else
-  gcloud billing budgets create --billing-account="${BILLING#billingAccounts/}" \
-    --display-name=textbridge --budget-amount=1USD \
-    --threshold-rule=percent=0.01 --threshold-rule=percent=1.0 --quiet >/dev/null \
-    && echo "Done: you'll get an email if anything ever costs money." \
-    || echo "Couldn't set it automatically. Set it in the console: Billing > Budgets & alerts."
+  # On a brand-new project the Budgets API takes a minute or two to come
+  # alive after being enabled above, so retry before giving up.
+  budget_ok=""
+  for attempt in 1 2 3 4 5 6; do
+    if gcloud billing budgets create --billing-account="${BILLING#billingAccounts/}" \
+      --display-name=textbridge --budget-amount=1USD \
+      --threshold-rule=percent=0.01 --threshold-rule=percent=1.0 --quiet >/dev/null 2>&1; then
+      budget_ok=1; break
+    fi
+    [ "$attempt" -lt 6 ] && { echo "Billing service still starting; retrying in 20 seconds..."; sleep 20; }
+  done
+  if [ -n "$budget_ok" ]; then
+    echo "Done: you'll get an email if anything ever costs money."
+  else
+    echo "Couldn't set it automatically. Set it in the console: Billing > Budgets & alerts."
+  fi
 fi
 
 say "Opening web access (ports 80 and 443)"

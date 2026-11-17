@@ -223,12 +223,46 @@ func (s *Server) handlePairWait(w http.ResponseWriter, r *http.Request) {
 	case "success":
 		s.renderPair(w, 200, map[string]any{"View": "success"})
 	case "error":
-		msg := st["message"]
-		if msg == "" {
-			msg = "Pairing failed."
-		}
+		msg := friendlyPairError(st["message"])
 		s.renderPair(w, 200, map[string]any{"View": "error", "Error": msg})
 	default: // queued, running
 		s.renderPair(w, 200, map[string]any{"View": "waiting", "Refresh": true})
+	}
+}
+
+// gaiaErrorNames covers Google's GaiaPairingErrorCode values that the pinned
+// libgm proto predates, so its errors carry only the number ("3/32").
+var gaiaErrorNames = map[string]string{
+	"32": "CLIENT_ATTESTATION_MISSING",
+	"33": "CLIENT_ATTESTATION_MISMATCH",
+	"34": "SI_RESPONSE_FROM_UNEXPECTED_PHONE_REGISTRATION_ID",
+	"35": "CLIENT_ATTESTATION_REVISION_MISMATCH",
+}
+
+// friendlyPairError turns OpenMessage's raw pairing error into something a
+// person can act on, keeping the raw text so it can still be reported.
+func friendlyPairError(raw string) string {
+	if raw == "" {
+		return "Pairing failed."
+	}
+	const marker = "unknown error pairing: "
+	i := strings.Index(raw, marker)
+	if i < 0 {
+		return raw
+	}
+	code := raw[i+len(marker):]
+	if j := strings.LastIndex(code, "/"); j >= 0 {
+		code = code[j+1:]
+	}
+	code = strings.TrimSpace(code)
+	name, ok := gaiaErrorNames[code]
+	if !ok {
+		return raw
+	}
+	switch name {
+	case "CLIENT_ATTESTATION_MISSING", "CLIENT_ATTESTATION_MISMATCH", "CLIENT_ATTESTATION_REVISION_MISMATCH":
+		return "Google refused the link because it now asks the linking device to prove it is an official Google client (" + name + "). textbridge can't do that yet, so trying again won't help. Your phone and cookie are fine. Watch for a textbridge update, then run it and pair again. (Details: " + raw + ")"
+	default:
+		return "Google refused the link (" + name + "). Try again with a fresh cookie; if it keeps happening, report this message. (Details: " + raw + ")"
 	}
 }

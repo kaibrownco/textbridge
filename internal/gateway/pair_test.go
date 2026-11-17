@@ -129,3 +129,22 @@ func TestNormalizeCookieFormats(t *testing.T) {
 		}
 	}
 }
+
+func TestFriendlyPairError(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"", "Pairing failed."},
+		{"google account pairing: unknown error pairing: 3/32", "CLIENT_ATTESTATION_MISSING"},
+		{"google account pairing: unknown error pairing: 3/34", "SI_RESPONSE_FROM_UNEXPECTED_PHONE_REGISTRATION_ID"},
+		{"google account pairing: unknown error pairing: 3/UKEY2_ALERT_ERROR", "unknown error pairing: 3/UKEY2_ALERT_ERROR"},
+		{"Timed out waiting for your phone.", "Timed out waiting for your phone."},
+	}
+	for _, c := range cases {
+		got := friendlyPairError(c.in)
+		if !strings.Contains(got, c.want) {
+			t.Errorf("friendlyPairError(%q) = %q, want it to contain %q", c.in, got, c.want)
+		}
+	}
+	if got := friendlyPairError("google account pairing: unknown error pairing: 3/32"); !strings.Contains(got, "3/32") {
+		t.Errorf("raw code dropped: %q", got)
+	}
+}

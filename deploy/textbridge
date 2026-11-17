@@ -93,6 +93,15 @@ EOF
       [ "$rc" -eq 124 ] && msg="Timed out waiting for your phone. Keep Google Messages open and try again."
       setst "state=error" "message=${msg:-Pairing failed.}"
     fi
+    # Keep the last attempt for diagnosis (server_logs shows it). Drop any
+    # line that could carry a cookie value.
+    grep -v -i -E 'cookie|SAPISID|PSID|OSID|HSID|SSID|APISID' "$log" | tail -n 200 > "$pdir/last.log" || true
+    chmod 600 "$pdir/last.log"
+    if [ "$rc" -eq 0 ] && grep -q "Pairing successful" "$log"; then
+      echo "pairing result: success"
+    else
+      echo "pairing result: failed (exit $rc): ${msg:-Pairing failed.}"
+    fi
     rm -f "$log"
     systemctl start textbridge-openmessage
     ;;
@@ -115,8 +124,15 @@ EOF
         { "$0" status 2>&1; echo; echo "Recent upkeep:"; tail -5 "$history" 2>/dev/null | sed 's/^/  /' || true; } | result ;;
       logs)
         n="${lines:-80}"; [ "$n" -gt 300 ] && n=300
-        journalctl -u textbridge-openmessage -u textbridge-gateway -n 2000 --no-pager -o short-iso 2>&1 \
-          | grep -v -E 'HMAC mismatch|Received response with no pending request|accept-and-log rollout' | tail -n "$n" | result ;;
+        {
+          journalctl -u textbridge-openmessage -u textbridge-gateway -u textbridge-pair -n 2000 --no-pager -o short-iso 2>&1 \
+            | grep -v -E 'HMAC mismatch|Received response with no pending request|accept-and-log rollout|pam_unix|COMMAND=' | tail -n "$n"
+          if [ -s "$DATA/gateway/pair/last.log" ]; then
+            echo
+            echo "Last pairing attempt ($(date -u -r "$DATA/gateway/pair/last.log" '+%F %H:%M UTC')):"
+            tail -n 40 "$DATA/gateway/pair/last.log" | sed -e 's/\x1b\[[0-9;]*m//g' -e 's/^/  /'
+          fi
+        } | result ;;
       update)
         echo "Update started $(date -u '+%H:%M UTC'). The connector may drop for a minute; check server_status in about 2 minutes." | result
         echo "$(date -u '+%F %H:%M') update started" >> "$history"
