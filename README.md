@@ -18,7 +18,10 @@ Claude ──https──▶ Caddy ──▶ textbridge-gateway ──▶ OpenMes
   Google Messages work: it links to your phone the way Messages for web
   does, syncs your full history, and exposes MCP tools (read, search, send).
   It links as a *tablet*, so your normal Messages for web keeps working.
-  We build it unmodified at the commit pinned in [`UPSTREAM`](UPSTREAM).
+  We build it at the commit pinned in [`UPSTREAM`](UPSTREAM), against its
+  libgm fork with the small fixes in [`patches/gmessages`](patches/gmessages)
+  (currently: the pairing confirmation Google has required since Aug 2026,
+  matching upstream mautrix/gmessages).
 - **textbridge-gateway** (this repo, Go standard library only) is the lock
   on the door. Claude connects through standard MCP OAuth: dynamic client
   registration, authorization code with PKCE, rotating refresh tokens. You

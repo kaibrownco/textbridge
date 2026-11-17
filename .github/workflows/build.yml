@@ -41,6 +41,17 @@ jobs:
           commit="$(tr -d '[:space:]' < UPSTREAM)"
           git clone --quiet https://github.com/MaxGhenis/openmessage.git upstream
           git -C upstream checkout --quiet "$commit"
+          # OpenMessage builds against a fork of mautrix-gmessages' libgm.
+          # Check out the exact fork commit it pins and apply our patches
+          # (e.g. the Gaia pairing confirmation Google now requires).
+          gm_ref="$(sed -n 's#^replace go.mau.fi/mautrix-gmessages => github.com/MaxGhenis/gmessages .*-\([0-9a-f]\{12\}\)$#\1#p' upstream/go.mod)"
+          test -n "$gm_ref"
+          git clone --quiet https://github.com/MaxGhenis/gmessages.git gm
+          git -C gm checkout --quiet "$gm_ref"
+          for p in patches/gmessages/*.patch; do git -C gm apply "$PWD/$p"; done
+          grep -q PrivateAPIConfirmation gm/pkg/libgm/pair_google.go
+          (cd gm && go vet ./pkg/libgm/...)
+          (cd upstream && go mod edit -replace "go.mau.fi/mautrix-gmessages=../gm")
           cd upstream
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
             -ldflags "-s -w -X main.version=textbridge-${commit:0:7}" -o ../dist/openmessage .
