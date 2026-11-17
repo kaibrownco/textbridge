@@ -261,7 +261,7 @@ func friendlyPairError(raw string) string {
 	}
 	switch name {
 	case "CLIENT_ATTESTATION_MISSING", "CLIENT_ATTESTATION_MISMATCH", "CLIENT_ATTESTATION_REVISION_MISMATCH":
-		return "Google refused the link because it now asks the linking device to prove it is an official Google client (" + name + "). textbridge can't do that yet, so trying again won't help. Your phone and cookie are fine. Watch for a textbridge update, then run it and pair again. (Details: " + raw + ")"
+		return "Google refused the link (" + name + "). Newer versions of the Messages app ask linking devices to prove they're an official Google client, which textbridge can't do, so retrying won't help. Your cookie is fine. Workaround: on your phone open Settings > Apps > Messages > ⋮ > Uninstall updates, turn off auto-update for Messages in the Play Store, then pair again. (Details: " + raw + ")"
 	default:
 		return "Google refused the link (" + name + "). Try again with a fresh cookie; if it keeps happening, report this message. (Details: " + raw + ")"
 	}
