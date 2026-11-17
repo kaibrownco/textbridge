@@ -37,7 +37,7 @@ ol{padding-left:1.2em}li{margin:.35em 0}.err{color:#b00020}.ok{color:#137333}
 {{if eq .View "form"}}
 <h1>Link your phone</h1>
 <ol>
-<li>Use <b>Safari or Firefox</b>, not Chrome (Chrome ties the sign-in to itself and the link dies within hours).</li>
+<li>Get the cookie from <b>Safari or Firefox</b>, not Chrome (Chrome ties the sign-in to itself and the link dies within hours). This page itself can be open in any browser.</li>
 <li>One time: install the free <b>Cookie-Editor</b> extension (cookie-editor.com, for Safari or Firefox) and allow it in private windows.</li>
 <li>Open a <b>private window</b>, go to <b>messages.google.com/web</b> and sign in with the Google account your phone uses.</li>
 <li>Click the Cookie-Editor icon › <b>Export</b> › <b>Header String</b>. That copies everything needed.</li>

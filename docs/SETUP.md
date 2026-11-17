@@ -60,7 +60,9 @@ It takes a few minutes. At the end it prints:
 
 - your **connector URL** (ends in `/mcp`)
 - your **passphrase**. Save it in your password manager right away; it is
-  shown only once.
+  shown only once. (If Claude is helping you in Chrome, it can read the
+  passphrase straight from the Cloud Shell output and type it in for you
+  in steps 4 and 5, so you never have to touch the terminal.)
 
 ## 4. Link your phone
 
@@ -73,7 +75,8 @@ sign in at messages.google.com/web; click Cookie-Editor › Export ›
 emoji the page shows. (Copying the `Cookie` request header from the
 developer tools' Network tab works too.)
 
-**Don't use Chrome for this.** Chrome binds Google sign-ins to itself
+**Don't get the cookie from Chrome.** (The /pair page itself can be open
+in any browser, so Claude in Chrome can fill in the passphrase there.) Chrome binds Google sign-ins to itself
 (device-bound session credentials), so cookies copied out of Chrome stop
 working on the server within a couple of hours.
 
